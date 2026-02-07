@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use uv_static::EnvVars;
+
 /// A collection of `.env` file paths.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct EnvFile(Vec<PathBuf>);
@@ -7,8 +9,9 @@ pub struct EnvFile(Vec<PathBuf>);
 impl EnvFile {
     /// Parse the env file paths from command-line arguments.
     /// 
-    /// If no explicit files are provided and `no_env_file` is not set,
-    /// automatically discovers and uses `.env*` files in the current directory.
+    /// If no explicit files are provided, `no_env_file` is not set, and the
+    /// `UV_AUTO_LOAD_ENV_FILES` environment variable is set to `true`, automatically
+    /// discovers and uses `.env*` files in the current directory.
     pub fn from_args(env_file: Vec<String>, no_env_file: bool) -> Self {
         if no_env_file {
             return Self::default();
@@ -40,8 +43,8 @@ impl EnvFile {
             }
         }
 
-        // Auto-discover .env* files if no explicit files provided
-        if paths.is_empty() {
+        // Auto-discover .env* files if no explicit files provided and UV_AUTO_LOAD_ENV_FILES is set
+        if paths.is_empty() && should_auto_load_env_files() {
             // Search for .env* files in order of precedence (first file has lowest precedence)
             // This order ensures that more specific files override general ones
             let env_patterns = [".env", ".env.local", ".env.production"];
@@ -62,19 +65,31 @@ impl EnvFile {
     }
 }
 
+/// Check if auto-loading of `.env*` files is enabled via environment variable.
+fn should_auto_load_env_files() -> bool {
+    std::env::var(EnvVars::UV_AUTO_LOAD_ENV_FILES)
+        .ok()
+        .and_then(|value| {
+            let value = value.trim().to_lowercase();
+            match value.as_str() {
+                "true" | "1" | "yes" | "y" | "on" => Some(true),
+                "false" | "0" | "no" | "n" | "off" => Some(false),
+                _ => None,
+            }
+        })
+        .unwrap_or(false)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_from_args_auto_discovery() {
-        // When no explicit files provided, auto-discovery happens
-        // The actual files found will depend on what exists in the current directory
-        // This test just verifies the function doesn't panic
+    fn test_from_args_no_auto_discovery_by_default() {
+        // When no explicit files provided and UV_AUTO_LOAD_ENV_FILES is not set,
+        // no auto-discovery should happen
         let env_file = EnvFile::from_args(vec![], false);
-        // The result may or may not be empty depending on whether .env* files exist
-        // We just verify it doesn't error
-        let _ = env_file.iter().count();
+        assert_eq!(env_file, EnvFile::default());
     }
 
     #[test]
@@ -85,18 +100,16 @@ mod tests {
 
     #[test]
     fn test_from_args_empty_string() {
-        // Empty string is treated as no explicit files, so auto-discovery happens
+        // Empty string is treated as no explicit files, no auto-discovery without env var
         let env_file = EnvFile::from_args(vec![String::new()], false);
-        // The result may or may not be empty depending on whether .env* files exist
-        let _ = env_file.iter().count();
+        assert_eq!(env_file, EnvFile::default());
     }
 
     #[test]
     fn test_from_args_whitespace_only() {
-        // Whitespace-only string is treated as no explicit files, so auto-discovery happens
+        // Whitespace-only string is treated as no explicit files, no auto-discovery without env var
         let env_file = EnvFile::from_args(vec!["   ".to_string()], false);
-        // The result may or may not be empty depending on whether .env* files exist
-        let _ = env_file.iter().count();
+        assert_eq!(env_file, EnvFile::default());
     }
 
     #[test]

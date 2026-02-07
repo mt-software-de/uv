@@ -4557,15 +4557,15 @@ fn run_with_env() -> Result<()> {
        "
     })?;
 
-    // With auto-discovery, .env file is automatically loaded
+    // Without UV_AUTO_LOAD_ENV_FILES, .env file is not loaded automatically
     uv_snapshot!(context.filters(), context.run().arg("test.py"), @"
     success: true
     exit_code: 0
     ----- stdout -----
-    palpatine
-    leia_organa
-    obi_wan_kenobi
-    C3PO
+    None
+    None
+    None
+    None
 
     ----- stderr -----
     ");
@@ -4730,9 +4730,10 @@ fn run_with_env_auto_discovery() -> Result<()> {
        "
     })?;
 
-    // Test auto-discovery - all files should be loaded with proper precedence
+    // Test auto-discovery with UV_AUTO_LOAD_ENV_FILES=true
+    // All files should be loaded with proper precedence
     // .env.production should override .env.local which should override .env
-    uv_snapshot!(context.filters(), context.run().arg("test.py"), @"
+    uv_snapshot!(context.filters(), context.run().env(EnvVars::UV_AUTO_LOAD_ENV_FILES, "true").arg("test.py"), @"
     success: true
     exit_code: 0
     ----- stdout -----
@@ -4744,8 +4745,21 @@ fn run_with_env_auto_discovery() -> Result<()> {
     ----- stderr -----
     ");
 
-    // Test that --no-env-file disables auto-discovery
-    uv_snapshot!(context.filters(), context.run().arg("--no-env-file").arg("test.py"), @"
+    // Test that without UV_AUTO_LOAD_ENV_FILES, no auto-discovery happens
+    uv_snapshot!(context.filters(), context.run().arg("test.py"), @"
+    success: true
+    exit_code: 0
+    ----- stdout -----
+    None
+    None
+    None
+    None
+
+    ----- stderr -----
+    ");
+
+    // Test that --no-env-file disables auto-discovery even with UV_AUTO_LOAD_ENV_FILES=true
+    uv_snapshot!(context.filters(), context.run().env(EnvVars::UV_AUTO_LOAD_ENV_FILES, "true").arg("--no-env-file").arg("test.py"), @"
     success: true
     exit_code: 0
     ----- stdout -----
