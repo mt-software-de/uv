@@ -107,7 +107,7 @@ pub(crate) async fn run(
     concurrency: Concurrency,
     cache: Cache,
     printer: Printer,
-    env_file: EnvFile,
+    mut env_file: EnvFile,
     preview: Preview,
     max_recursion_depth: u32,
 ) -> anyhow::Result<ExitStatus> {
@@ -162,6 +162,9 @@ hint: If you are running a script with `{}` in the shebang, you may need to incl
     let lock_state = UniversalState::default();
     let sync_state = lock_state.fork();
     let workspace_cache = WorkspaceCache::default();
+
+    // Perform auto-discovery of .env* files in the project directory
+    env_file.resolve_auto_discovery(project_dir);
 
     // Read from the `.env` file, if necessary.
     for env_file_path in env_file.iter().rev().map(PathBuf::as_path) {

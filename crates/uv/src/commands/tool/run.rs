@@ -122,7 +122,7 @@ pub(crate) async fn run(
     concurrency: Concurrency,
     cache: Cache,
     printer: Printer,
-    env_file: EnvFile,
+    mut env_file: EnvFile,
     preview: Preview,
 ) -> anyhow::Result<ExitStatus> {
     /// Whether or not a path looks like a Python script based on the file extension.
@@ -136,6 +136,9 @@ pub(crate) async fn run(
             "The `--torch-backend` option is experimental and may change without warning."
         );
     }
+
+    // Perform auto-discovery of .env* files in the current working directory
+    env_file.resolve_auto_discovery(&CWD);
 
     // Read from the `.env` file, if necessary.
     for env_file_path in env_file.iter().rev().map(PathBuf::as_path) {
