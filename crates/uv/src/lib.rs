@@ -1446,7 +1446,6 @@ async fn run(mut cli: Cli) -> Result<ExitStatus> {
                 cache,
                 printer,
                 args.env_file,
-                args.no_env_file,
                 globals.preview,
             ))
             .await
