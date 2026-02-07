@@ -4557,14 +4557,15 @@ fn run_with_env() -> Result<()> {
        "
     })?;
 
+    // With auto-discovery, .env file is automatically loaded
     uv_snapshot!(context.filters(), context.run().arg("test.py"), @"
     success: true
     exit_code: 0
     ----- stdout -----
-    None
-    None
-    None
-    None
+    palpatine
+    leia_organa
+    obi_wan_kenobi
+    C3PO
 
     ----- stderr -----
     ");
@@ -4689,6 +4690,68 @@ fn run_with_env_omitted() -> Result<()> {
     success: true
     exit_code: 0
     ----- stdout -----
+    None
+
+    ----- stderr -----
+    ");
+
+    Ok(())
+}
+
+#[test]
+fn run_with_env_auto_discovery() -> Result<()> {
+    let context = TestContext::new("3.12");
+
+    context.temp_dir.child("test.py").write_str(indoc! { "
+        import os
+        print(os.environ.get('BASE_VAR'))
+        print(os.environ.get('LOCAL_VAR'))
+        print(os.environ.get('PROD_VAR'))
+        print(os.environ.get('OVERRIDE_VAR'))
+       "
+    })?;
+
+    // Create multiple .env* files to test auto-discovery and precedence
+    context.temp_dir.child(".env").write_str(indoc! { "
+        BASE_VAR=base_value
+        OVERRIDE_VAR=from_base
+       "
+    })?;
+
+    context.temp_dir.child(".env.local").write_str(indoc! { "
+        LOCAL_VAR=local_value
+        OVERRIDE_VAR=from_local
+       "
+    })?;
+
+    context.temp_dir.child(".env.production").write_str(indoc! { "
+        PROD_VAR=prod_value
+        OVERRIDE_VAR=from_production
+       "
+    })?;
+
+    // Test auto-discovery - all files should be loaded with proper precedence
+    // .env.production should override .env.local which should override .env
+    uv_snapshot!(context.filters(), context.run().arg("test.py"), @"
+    success: true
+    exit_code: 0
+    ----- stdout -----
+    base_value
+    local_value
+    prod_value
+    from_production
+
+    ----- stderr -----
+    ");
+
+    // Test that --no-env-file disables auto-discovery
+    uv_snapshot!(context.filters(), context.run().arg("--no-env-file").arg("test.py"), @"
+    success: true
+    exit_code: 0
+    ----- stdout -----
+    None
+    None
+    None
     None
 
     ----- stderr -----
