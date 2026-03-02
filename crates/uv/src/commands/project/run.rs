@@ -163,8 +163,39 @@ hint: If you are running a script with `{}` in the shebang, you may need to incl
     let sync_state = lock_state.fork();
     let workspace_cache = WorkspaceCache::default();
 
-    // Perform auto-discovery of .env* files in the project directory
-    env_file.resolve_auto_discovery(project_dir);
+    // Determine the directory to use for .env file discovery
+    // Try to find the project root first, fall back to project_dir
+    let env_discovery_dir = {
+        // Try to discover the workspace/project to get the actual root directory
+        let discovery_dir: Cow<'_, Path> =
+            if preview.is_enabled(PreviewFeature::TargetWorkspaceDiscovery) {
+                if let Some(dir) = command.as_ref().and_then(RunCommand::script_dir) {
+                    match std::path::absolute(dir) {
+                        Ok(abs_dir) => Cow::Owned(abs_dir),
+                        Err(_) => Cow::Borrowed(project_dir),
+                    }
+                } else {
+                    Cow::Borrowed(project_dir)
+                }
+            } else {
+                Cow::Borrowed(project_dir)
+            };
+
+        // Try to discover the project/workspace to get the actual root
+        match VirtualProject::discover(
+            &discovery_dir,
+            &DiscoveryOptions::default(),
+            &workspace_cache,
+        )
+        .await
+        {
+            Ok(project) => Cow::Owned(project.root().to_path_buf()),
+            Err(_) => Cow::Borrowed(project_dir),
+        }
+    };
+
+    // Perform auto-discovery of .env* files in the project root directory
+    env_file.resolve_auto_discovery(&env_discovery_dir);
 
     // Read from the `.env` file, if necessary.
     for env_file_path in env_file.iter().rev().map(PathBuf::as_path) {
