@@ -1120,6 +1120,11 @@ impl EnvVars {
     #[attr_added_in("0.4.30")]
     pub const UV_NO_ENV_FILE: &'static str = "UV_NO_ENV_FILE";
 
+    /// Automatically discover and load `.env*` files (`.env`, `.env.local`, `.env.production`) when
+    /// executing `uv run` commands, if no explicit `--env-file` is provided.
+    #[attr_added_in("0.10.0")]
+    pub const UV_AUTO_LOAD_ENV_FILES: &'static str = "UV_AUTO_LOAD_ENV_FILES";
+
     /// The URL from which to download uv using the standalone installer and `self update` feature,
     /// in lieu of the default GitHub URL.
     #[attr_added_in("0.5.0")]

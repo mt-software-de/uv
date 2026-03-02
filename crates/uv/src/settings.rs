@@ -718,8 +718,7 @@ pub(crate) struct ToolRunSettings {
     pub(crate) refresh: Refresh,
     pub(crate) options: ResolverInstallerOptions,
     pub(crate) settings: ResolverInstallerSettings,
-    pub(crate) env_file: Vec<PathBuf>,
-    pub(crate) no_env_file: bool,
+    pub(crate) env_file: EnvFile,
 }
 
 impl ToolRunSettings {
@@ -804,6 +803,12 @@ impl ToolRunSettings {
         let show_resolution = show_resolution || environment.show_resolution.value == Some(true);
         let no_env_file = no_env_file || environment.no_env_file.value == Some(true);
 
+        // Convert env_file paths to strings for EnvFile::from_args
+        let env_file_strings: Vec<String> = env_file
+            .into_iter()
+            .map(|p| p.display().to_string())
+            .collect();
+
         Self {
             command,
             from,
@@ -842,8 +847,7 @@ impl ToolRunSettings {
             install_mirrors: environment
                 .install_mirrors
                 .combine(filesystem_install_mirrors),
-            env_file,
-            no_env_file,
+            env_file: EnvFile::from_args(env_file_strings, no_env_file),
         }
     }
 }
